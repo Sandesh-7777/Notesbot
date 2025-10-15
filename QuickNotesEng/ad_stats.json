@@ -1,0 +1,11 @@
+{
+  "total_impressions": 3,
+  "ad_clicks": {
+    "egcpm_ad1": {
+      "clicks": 0,
+      "conversions": 0
+    }
+  },
+  "conversions": 0,
+  "revenue_earned": 0.0
+}

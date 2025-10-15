@@ -1,0 +1,78 @@
+{
+  "CSE": {
+    "4": {
+      "DBMS": {
+        "materials": [
+          {
+            "title": "DBMS Module 1 Notes",
+            "file_id": "BQACAgUAAxkBAAMHaO6L7HpmEKJr6ZKMvC6NQ5uaPLAAAvUVAAJM_nlX1dCf5s3L2Fc2BA",
+            "type": "document",
+            "keywords": [
+              "dbms database module1 rdbms"
+            ],
+            "uploaded_by": "Sandesh",
+            "uploaded_at": "2025-10-14T23:14:37.248194"
+          },
+          {
+            "title": "DBMS Module 2 Notes",
+            "file_id": "BQACAgUAAxkBAAMbaO91qzZ5z6FUkdFCtUSPLEY7jNwAAioXAAJM_nlX5UP4H5mEUn82BA",
+            "type": "document",
+            "keywords": [
+              "dbms database module2 rdbms"
+            ],
+            "uploaded_by": "Sandesh",
+            "uploaded_at": "2025-10-15T15:52:18.351964"
+          }
+        ]
+      },
+      "Operating Systems": {
+        "materials": [
+          {
+            "title": "OS Complete Notes",
+            "file_id": "",
+            "type": "pdf",
+            "keywords": [
+              "os",
+              "operating system",
+              "complete notes"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "ECE": {
+    "3": {
+      "Digital Electronics": {
+        "materials": [
+          {
+            "title": "Digital Electronics Basics",
+            "file_id": "",
+            "type": "pdf",
+            "keywords": [
+              "digital",
+              "electronics",
+              "basics"
+            ]
+          }
+        ]
+      }
+    },
+    "5": {
+      "DSP": {
+        "materials": [
+          {
+            "title": "DSP module 1",
+            "file_id": "BQACAgUAAxkBAAIBVGjavCols3PGPyCYizPmJ7DFgNT3AAIgHwACgCvYVqApBs8WTAbeNgQ",
+            "type": "document",
+            "keywords": [
+              "dsp bec502"
+            ],
+            "uploaded_by": "Prasanna C",
+            "uploaded_at": "2025-09-29T22:37:26.123385"
+          }
+        ]
+      }
+    }
+  }
+}
