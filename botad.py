@@ -7,10 +7,11 @@ import random
 import asyncio
 from datetime import datetime, timedelta
 import time
-# Add this at the top of your bot.py for better debugging
+
 import traceback
-from keep_alive import keep_alive
-keep_alive()
+from keep_alive import start_keep_alive
+# Start keep alive
+start_keep_alive()
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Enhanced error handler with detailed logging"""
