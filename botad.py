@@ -10,8 +10,7 @@ import time
 
 import traceback
 from keep_alive import start_keep_alive
-# Start keep alive
-start_keep_alive()
+
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Enhanced error handler with detailed logging"""
@@ -2144,6 +2143,9 @@ def main() -> None:
     if config.BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
         print("❌ ERROR: Please set your bot token in config.py")
         return
+
+    # 1️⃣ Start the keep-alive Flask thread
+    start_keep_alive()
     
     # Create the Application
     application = Application.builder().token(config.BOT_TOKEN).build()
