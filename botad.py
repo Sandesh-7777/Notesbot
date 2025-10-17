@@ -10,6 +10,8 @@ import time
 
 import traceback
 from keep_alive import run_flask, ping_server
+from threading import Thread
+
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Enhanced error handler with detailed logging"""
