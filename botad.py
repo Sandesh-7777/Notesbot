@@ -9,8 +9,7 @@ from datetime import datetime, timedelta
 import time
 
 import traceback
-from keep_alive import start_keep_alive
-
+from keep_alive import run_flask, ping_server
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Enhanced error handler with detailed logging"""
@@ -2143,9 +2142,13 @@ def main() -> None:
     if config.BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
         print("❌ ERROR: Please set your bot token in config.py")
         return
+        
+    # Start Flask in background thread
+    Thread(target=run_flask, daemon=True).start()
 
-    # 1️⃣ Start the keep-alive Flask thread
-    start_keep_alive()
+    # Start background async ping
+    loop = asyncio.get_event_loop()
+    loop.create_task(ping_server())
     
     # Create the Application
     application = Application.builder().token(config.BOT_TOKEN).build()
