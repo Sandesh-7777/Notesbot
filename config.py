@@ -6,8 +6,8 @@ BOT_TOKEN = "8148559791:AAFQfWdWXEwvyCyLc8t_vbqkIFxTun-wUVc"
 # GITHUB_TOKEN = "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"
 # GITHUB_REPO = "Sandesh-7777/Notesbot"  # Format: "username/repository-name"
 # GitHub Storage Configuration 
-GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '8148559791:AAFQfWdWXEwvyCyLc8t_vbqkIFxTun-wUVc') 
-GITHUB_REPO = os.getenv('GITHUB_REPO', 'Sandesh-7777/Notesbot') # Format: "username/repository-name"
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '') 
+GITHUB_REPO = os.getenv('GITHUB_REPO', '') # Format: "username/repository-name"
 
 # Your Telegram User ID (to get this, send /start to @userinfobot on Telegram)
 ADMIN_IDS = [6884754821]  # Replace with your actual Telegram ID
