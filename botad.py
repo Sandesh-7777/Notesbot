@@ -148,6 +148,18 @@ def search_materials(query):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Send greeting message and show main menu options."""
     user = update.effective_user
+    # Track user interaction
+    try:
+        from user_tracking import track_user_interaction
+        track_user_interaction(
+            user_id=user.id,
+            username=user.username or "No username",
+            first_name=user.first_name or "Unknown",
+            action="start"
+        )
+    except Exception as e:
+        print(f"⚠️ Could not track user: {e}")
+    
     user_role = get_user_role(user.id)
 
     # Check if user is admin
@@ -763,12 +775,17 @@ async def start_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle search query."""
     user = update.effective_user
-    track_user_interaction(
-        user_id=user.id,
-        username=user.username or "No username", 
-        first_name=user.first_name or "Unknown",
-        action="search"
-    )
+    # Track search action
+    try:
+        from user_tracking import track_user_interaction
+        track_user_interaction(
+            user_id=user.id,
+            username=user.username or "No username", 
+            first_name=user.first_name or "Unknown",
+            action="search"
+        )
+    except Exception as e:
+        print(f"⚠️ Could not track search: {e}")
     
     query = update.message.text
     results = search_materials(query)
@@ -2102,43 +2119,61 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show admin statistics with user counts"""
+    """Show admin statistics with user counts - safe version"""
     user = update.effective_user
     if user.id not in config.ADMIN_IDS:
         await update.message.reply_text("❌ Admin access required.")
         return
     
-    # Load stats
-    ad_stats = load_ad_stats()
-    user_stats = get_user_stats()
-    
-    # Calculate some additional metrics
-    unique_users = user_stats.get("unique_users", 0)
-    active_users = user_stats.get("active_users", 0)
-    total_interactions = user_stats.get("total_interactions", 0)
-    
-    text = (
-        "📊 **Bot Statistics**\n\n"
-        f"👥 **User Statistics:**\n"
-        f"• Total Unique Users: {unique_users}\n"
-        f"• Active Users (30 days): {active_users}\n"
-        f"• Total Interactions: {total_interactions}\n\n"
-        f"📢 **Advertisement Performance:**\n"
-        f"• Total Impressions: {ad_stats.get('total_impressions', 0)}\n"
-        f"• Total Conversions: {ad_stats.get('conversions', 0)}\n"
-        f"• Revenue Earned: ${ad_stats.get('revenue_earned', 0):.2f}\n\n"
-        f"📚 **Study Materials:**\n"
-        f"• Total Branches: {len(STUDY_MATERIALS)}\n"
-        f"• Total Materials: {sum(len(semesters.get(subject, {}).get('materials', [])) for branch in STUDY_MATERIALS.values() for semesters in branch.values() for subject in semesters)}\n\n"
-        "💝 **Donation Tracking:**\n"
-        "• Use /donations to see donation history\n\n"
-        "⚙️ **Admin Commands:**\n"
-        "• /stats - Show this statistics\n" 
-        "• /donations - Show donation history\n"
-        "• /user_details - Show detailed user information"
-    )
-    
-    await update.message.reply_text(text, parse_mode="Markdown")
+    try:
+        # Load stats with error handling
+        ad_stats = load_ad_stats()
+        user_stats = get_user_stats()
+        
+        # Calculate material count safely
+        total_materials = 0
+        try:
+            for branch in STUDY_MATERIALS.values():
+                for semesters in branch.values():
+                    for subject_data in semesters.values():
+                        total_materials += len(subject_data.get("materials", []))
+        except Exception as e:
+            print(f"❌ Error counting materials: {e}")
+            total_materials = 0
+        
+        # Build the stats message safely
+        text = (
+            "📊 **Bot Statistics**\n\n"
+            f"👥 **User Statistics:**\n"
+            f"• Total Unique Users: {user_stats.get('unique_users', 0)}\n"
+            f"• Active Users (30 days): {user_stats.get('active_users', 0)}\n"
+            f"• Total Interactions: {user_stats.get('total_interactions', 0)}\n\n"
+            f"📢 **Advertisement Performance:**\n"
+            f"• Total Impressions: {ad_stats.get('total_impressions', 0)}\n"
+            f"• Total Conversions: {ad_stats.get('conversions', 0)}\n"
+            f"• Revenue Earned: ${ad_stats.get('revenue_earned', 0):.2f}\n\n"
+            f"📚 **Study Materials:**\n"
+            f"• Total Branches: {len(STUDY_MATERIALS)}\n"
+            f"• Total Materials: {total_materials}\n\n"
+            "💝 **Donation Tracking:**\n"
+            "• Use /donations to see donation history\n\n"
+            "⚙️ **Admin Commands:**\n"
+            "• /stats - Show this statistics\n" 
+            "• /donations - Show donation history\n"
+            "• /user_details - Show detailed user information\n"
+            "• /ad_stats - Show ad performance details"
+        )
+        
+        await update.message.reply_text(text, parse_mode="Markdown")
+        
+    except Exception as e:
+        logger.error(f"Error in admin_stats: {e}")
+        error_text = (
+            "❌ **Error generating statistics**\n\n"
+            "There was an error retrieving the statistics. "
+            "Please check the bot logs for details."
+        )
+        await update.message.reply_text(error_text, parse_mode="Markdown")
 
 async def my_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show user's download status via command"""
@@ -2301,9 +2336,14 @@ def main() -> None:
     # Initialize GitHub storage
     init_github_storage()
 
-    # Initialize user tracking
+    # Initialize user tracking AFTER GitHub storage
     from github_storage import github_storage
-    init_user_tracker(github_storage)
+    if github_storage:
+        from user_tracking import init_user_tracker
+        init_user_tracker(github_storage)
+        print("✅ User tracking initialized")
+    else:
+        print("⚠️ User tracking disabled - GitHub storage not available")
     
     # Check if token is set
     if config.BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
