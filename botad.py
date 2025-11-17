@@ -59,9 +59,11 @@ logger = logging.getLogger(__name__)
     SEARCH_RESULTS,
     UPLOAD_FILE,      # NEW: For team member file upload
     UPLOAD_DETAILS,   # NEW: For team member upload details
-    GITHUB_STATUS
+    GITHUB_STATUS,
+    STORAGE,
+    FORCE_SAVE
     
-) = range(13)
+) = range(15)
 
 # Ensure PDF folder exists
 if not os.path.exists(config.PDF_FOLDER):
@@ -319,16 +321,14 @@ async def handle_team_upload_text(update: Update, context: ContextTypes.DEFAULT_
         branch, semester, subject, title = parts[0], parts[1], parts[2], parts[3]
         keywords = [k.strip().lower() for k in parts[4:]]
         
-        # Validate branch
+        # Validate inputs
         valid_branches = ["CSE", "ECE", "EEE", "Mech", "Civil"]
         if branch not in valid_branches:
             raise ValueError(f"❌ Invalid branch: {branch}. Use: {', '.join(valid_branches)}")
         
-        # Validate semester
         if not semester.isdigit() or not (1 <= int(semester) <= 8):
             raise ValueError("❌ Invalid semester. Use a number between 1-8")
         
-        # Validate other fields
         if not subject.strip():
             raise ValueError("❌ Subject cannot be empty")
         if not title.strip():
@@ -336,21 +336,18 @@ async def handle_team_upload_text(update: Update, context: ContextTypes.DEFAULT_
         if not keywords:
             raise ValueError("❌ Please provide at least one keyword")
         
-        # Debug: Print current structure before modification
-        print(f"🔧 BEFORE UPDATE - STUDY_MATERIALS keys: {list(STUDY_MATERIALS.keys())}")
-        if branch in STUDY_MATERIALS:
-            print(f"🔧 Branch {branch} exists, semesters: {list(STUDY_MATERIALS[branch].keys())}")
+        print(f"🔄 Processing upload: {branch}, Sem {semester}, {subject}, '{title}'")
+        
+        # CRITICAL: Ensure STUDY_MATERIALS is the global variable
+        global STUDY_MATERIALS
         
         # Create structure if not exists
         if branch not in STUDY_MATERIALS:
             STUDY_MATERIALS[branch] = {}
-            print(f"➕ Created new branch: {branch}")
         if semester not in STUDY_MATERIALS[branch]:
             STUDY_MATERIALS[branch][semester] = {}
-            print(f"➕ Created new semester: {semester} in {branch}")
         if subject not in STUDY_MATERIALS[branch][semester]:
             STUDY_MATERIALS[branch][semester][subject] = {"materials": []}
-            print(f"➕ Created new subject: {subject} in {branch} Sem {semester}")
         
         # Add material
         new_material = {
@@ -362,19 +359,29 @@ async def handle_team_upload_text(update: Update, context: ContextTypes.DEFAULT_
             "uploaded_at": datetime.now().isoformat()
         }
         
-        print(f"➕ Adding new material: {title}")
-        print(f"📎 File ID: {context.user_data['upload_file_id']}")
-        
+        print(f"➕ Adding material to: {branch}/{semester}/{subject}")
         STUDY_MATERIALS[branch][semester][subject]["materials"].append(new_material)
         
-        # Debug: Print current structure after modification
+        # CRITICAL: Count materials before save
         materials_count = len(STUDY_MATERIALS[branch][semester][subject]["materials"])
-        print(f"🔧 AFTER UPDATE - {branch} Sem {semester} {subject} now has {materials_count} materials")
+        print(f"📊 Material added. Now {materials_count} materials in {subject}")
         
-        # Save materials
+        # Save to storage
         print("💾 Calling save_materials...")
         save_materials(STUDY_MATERIALS)
         print("✅ save_materials completed")
+        
+        # Verify the save worked by checking local file
+        try:
+            if os.path.exists('study_materials.json'):
+                with open('study_materials.json', 'r', encoding='utf-8') as f:
+                    saved_data = json.load(f)
+                    saved_count = len(saved_data.get(branch, {}).get(semester, {}).get(subject, {}).get("materials", []))
+                    print(f"🔍 VERIFICATION: Local file has {saved_count} materials for {subject}")
+            else:
+                print("❌ VERIFICATION: Local file not found after save!")
+        except Exception as e:
+            print(f"❌ VERIFICATION ERROR: {e}")
         
         # Success message
         text = (
@@ -2172,6 +2179,48 @@ async def check_github(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ GitHub error: {str(e)}")
 
+async def force_save(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Force save current data to GitHub"""
+    user = update.effective_user
+    if user.id not in config.ADMIN_IDS:
+        await update.message.reply_text("❌ Admin access required.")
+        return
+    
+    global STUDY_MATERIALS
+    save_materials(STUDY_MATERIALS)
+    await update.message.reply_text("💾 Force save initiated!")
+
+async def check_storage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Check storage status"""
+    from github_storage import github_storage
+    
+    text = "💾 **Storage Status**\n\n"
+    
+    if github_storage:
+        text += "✅ GitHub storage: **ENABLED**\n"
+        text += f"📁 Repository: `{github_storage.repo}`\n"
+    else:
+        text += "❌ GitHub storage: **DISABLED**\n"
+        text += "💾 Using local storage only\n"
+    
+    # Check local file
+    try:
+        if os.path.exists('study_materials.json'):
+            with open('study_materials.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                total_materials = 0
+                for branch, semesters in data.items():
+                    for semester, subjects in semesters.items():
+                        for subject, subject_data in subjects.items():
+                            total_materials += len(subject_data.get("materials", []))
+                text += f"📊 Local file: **{total_materials}** materials across **{len(data)}** branches\n"
+        else:
+            text += "📁 Local file: **NOT FOUND**\n"
+    except Exception as e:
+        text += f"❌ Local file error: {str(e)}\n"
+    
+    await update.message.reply_text(text, parse_mode="Markdown")
+
 
 #--------------------------------------------------------------------------------------------------------------
 
@@ -2207,6 +2256,8 @@ def main() -> None:
     application.add_handler(CommandHandler("reset", reset_user))
     # Add to main():
     application.add_handler(CommandHandler("github_status", check_github))
+    application.add_handler(CommandHandler("force_save", force_save))
+    application.add_handler(CommandHandler("storage", check_storage))
 
     # Team member upload handlers
     application.add_handler(MessageHandler(
