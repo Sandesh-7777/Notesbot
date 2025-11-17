@@ -1,3 +1,4 @@
+import os
 # config.py - Configuration file for your bot
 
 # Bot Token from BotFather
