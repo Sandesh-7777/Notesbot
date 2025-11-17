@@ -15,6 +15,8 @@ from threading import Thread
 # Add GitHub storage import
 from github_storage import init_github_storage, load_materials, save_materials
 
+from user_tracking import init_user_tracker, track_user_interaction, get_user_stats
+
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Enhanced error handler with detailed logging"""
     logger.error("Exception while handling an update:", exc_info=context.error)
@@ -61,9 +63,10 @@ logger = logging.getLogger(__name__)
     UPLOAD_DETAILS,   # NEW: For team member upload details
     GITHUB_STATUS,
     STORAGE,
-    FORCE_SAVE
+    FORCE_SAVE,
+    USER_DETAILS
     
-) = range(15)
+) = range(16)
 
 # Ensure PDF folder exists
 if not os.path.exists(config.PDF_FOLDER):
@@ -759,6 +762,14 @@ async def start_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle search query."""
+    user = update.effective_user
+    track_user_interaction(
+        user_id=user.id,
+        username=user.username or "No username", 
+        first_name=user.first_name or "Unknown",
+        action="search"
+    )
+    
     query = update.message.text
     results = search_materials(query)
     
@@ -1884,6 +1895,15 @@ async def send_material_direct(update: Update, context: ContextTypes.DEFAULT_TYP
     try:
         query = update.callback_query
         await query.answer()
+
+        # Track download
+        user = update.effective_user
+        track_user_interaction(
+            user_id=user.id,
+            username=user.username or "No username",
+            first_name=user.first_name or "Unknown", 
+            action="download"
+        )
         
         logger.info(f"send_material_direct called with index: {material_index}")
         
@@ -2082,7 +2102,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show admin statistics"""
+    """Show admin statistics with user counts"""
     user = update.effective_user
     if user.id not in config.ADMIN_IDS:
         await update.message.reply_text("❌ Admin access required.")
@@ -2090,18 +2110,32 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Load stats
     ad_stats = load_ad_stats()
+    user_stats = get_user_stats()
+    
+    # Calculate some additional metrics
+    unique_users = user_stats.get("unique_users", 0)
+    active_users = user_stats.get("active_users", 0)
+    total_interactions = user_stats.get("total_interactions", 0)
     
     text = (
         "📊 **Bot Statistics**\n\n"
+        f"👥 **User Statistics:**\n"
+        f"• Total Unique Users: {unique_users}\n"
+        f"• Active Users (30 days): {active_users}\n"
+        f"• Total Interactions: {total_interactions}\n\n"
         f"📢 **Advertisement Performance:**\n"
         f"• Total Impressions: {ad_stats.get('total_impressions', 0)}\n"
-        f"• Unique Users: {len(ad_stats.get('user_ad_count', {}))}\n\n"
+        f"• Total Conversions: {ad_stats.get('conversions', 0)}\n"
+        f"• Revenue Earned: ${ad_stats.get('revenue_earned', 0):.2f}\n\n"
+        f"📚 **Study Materials:**\n"
+        f"• Total Branches: {len(STUDY_MATERIALS)}\n"
+        f"• Total Materials: {sum(len(semesters.get(subject, {}).get('materials', [])) for branch in STUDY_MATERIALS.values() for semesters in branch.values() for subject in semesters)}\n\n"
         "💝 **Donation Tracking:**\n"
         "• Use /donations to see donation history\n\n"
         "⚙️ **Admin Commands:**\n"
-        "• /stats - Show this statistics\n"
+        "• /stats - Show this statistics\n" 
         "• /donations - Show donation history\n"
-        "• /broadcast - Broadcast message to all users"
+        "• /user_details - Show detailed user information"
     )
     
     await update.message.reply_text(text, parse_mode="Markdown")
@@ -2221,6 +2255,43 @@ async def check_storage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(text, parse_mode="Markdown")
 
+async def user_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show detailed user information"""
+    user = update.effective_user
+    if user.id not in config.ADMIN_IDS:
+        await update.message.reply_text("❌ Admin access required.")
+        return
+    
+    user_stats = get_user_stats()
+    user_details = user_stats.get("user_details", {})
+    
+    if not user_details:
+        await update.message.reply_text("📊 No user data available yet.")
+        return
+    
+    # Show top 10 most active users
+    sorted_users = sorted(
+        user_details.items(),
+        key=lambda x: x[1].get("total_interactions", 0),
+        reverse=True
+    )[:10]
+    
+    text = "👥 **Top 10 Most Active Users**\n\n"
+    
+    for i, (user_id, data) in enumerate(sorted_users, 1):
+        username = data.get("username", "No username")
+        first_name = data.get("first_name", "Unknown")
+        interactions = data.get("total_interactions", 0)
+        last_seen = data.get("last_seen", "Unknown")
+        
+        text += f"{i}. **{first_name}** (@{username})\n"
+        text += f"   • Interactions: {interactions}\n"
+        text += f"   • Last active: {last_seen[:10]}\n\n"
+    
+    text += f"**Total unique users:** {len(user_details)}"
+    
+    await update.message.reply_text(text, parse_mode="Markdown")
+
 
 #--------------------------------------------------------------------------------------------------------------
 
@@ -2229,6 +2300,11 @@ def main() -> None:
     """Start the bot."""
     # Initialize GitHub storage
     init_github_storage()
+
+    # Initialize user tracking
+    from github_storage import github_storage
+    init_user_tracker(github_storage)
+    
     # Check if token is set
     if config.BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
         print("❌ ERROR: Please set your bot token in config.py")
@@ -2258,6 +2334,7 @@ def main() -> None:
     application.add_handler(CommandHandler("github_status", check_github))
     application.add_handler(CommandHandler("force_save", force_save))
     application.add_handler(CommandHandler("storage", check_storage))
+    application.add_handler(CommandHandler("user_details", user_details))
 
     # Team member upload handlers
     application.add_handler(MessageHandler(
