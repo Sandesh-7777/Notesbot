@@ -59,8 +59,9 @@ logger = logging.getLogger(__name__)
     SEARCH_RESULTS,
     UPLOAD_FILE,      # NEW: For team member file upload
     UPLOAD_DETAILS,   # NEW: For team member upload details
+    GITHUB_STATUS
     
-) = range(12)
+) = range(13)
 
 # Ensure PDF folder exists
 if not os.path.exists(config.PDF_FOLDER):
