@@ -2,6 +2,9 @@
 
 # Bot Token from BotFather
 BOT_TOKEN = "8148559791:AAFQfWdWXEwvyCyLc8t_vbqkIFxTun-wUVc"
+# GitHub Storage Configuration
+GITHUB_TOKEN = "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"
+GITHUB_REPO = "Sandesh-7777/Notesbot"  # Format: "username/repository-name"
 
 # Your Telegram User ID (to get this, send /start to @userinfobot on Telegram)
 ADMIN_IDS = [6884754821]  # Replace with your actual Telegram ID
