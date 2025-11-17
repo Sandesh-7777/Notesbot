@@ -12,6 +12,8 @@ import traceback
 from keep_alive import run_flask, ping_server
 from threading import Thread
 
+# Add GitHub storage import
+from github_storage import init_github_storage, load_materials, save_materials
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Enhanced error handler with detailed logging"""
@@ -64,38 +66,38 @@ logger = logging.getLogger(__name__)
 if not os.path.exists(config.PDF_FOLDER):
     os.makedirs(config.PDF_FOLDER)
 
-def load_materials():
-    """Load study materials from JSON file."""
-    try:
-        if os.path.exists(config.DATA_FILE):
-            with open(config.DATA_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        else:
-            # Create initial file with sample data
-            initial_data = {
-                "CSE": {
-                    "4": {
-                        "DBMS": {
-                            "materials": [
-                                {"title": "DBMS Module 2 Notes", "file_id": "", "type": "pdf", "keywords": ["dbms", "database", "module2"]},
-                            ]
-                        }
-                    }
-                }
-            }
-            save_materials(initial_data)
-            return initial_data
-    except Exception as e:
-        logger.error(f"Error loading materials: {e}")
-        return {}
+# def load_materials():
+#     """Load study materials from JSON file."""
+#     try:
+#         if os.path.exists(config.DATA_FILE):
+#             with open(config.DATA_FILE, 'r', encoding='utf-8') as f:
+#                 return json.load(f)
+#         else:
+#             # Create initial file with sample data
+#             initial_data = {
+#                 "CSE": {
+#                     "4": {
+#                         "DBMS": {
+#                             "materials": [
+#                                 {"title": "DBMS Module 2 Notes", "file_id": "", "type": "pdf", "keywords": ["dbms", "database", "module2"]},
+#                             ]
+#                         }
+#                     }
+#                 }
+#             }
+#             save_materials(initial_data)
+#             return initial_data
+#     except Exception as e:
+#         logger.error(f"Error loading materials: {e}")
+#         return {}
 
-def save_materials(materials):
-    """Save study materials to JSON file."""
-    try:
-        with open(config.DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump(materials, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        logger.error(f"Error saving materials: {e}")
+# def save_materials(materials):
+#     """Save study materials to JSON file."""
+#     try:
+#         with open(config.DATA_FILE, 'w', encoding='utf-8') as f:
+#             json.dump(materials, f, indent=2, ensure_ascii=False)
+#     except Exception as e:
+#         logger.error(f"Error saving materials: {e}")
 
 # Load materials at startup
 STUDY_MATERIALS = load_materials()
@@ -2140,6 +2142,8 @@ async def show_donations(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Main function
 def main() -> None:
     """Start the bot."""
+    # Initialize GitHub storage
+    init_github_storage()
     # Check if token is set
     if config.BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
         print("❌ ERROR: Please set your bot token in config.py")
