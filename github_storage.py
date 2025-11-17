@@ -47,7 +47,8 @@ class GitHubStorage:
     def save_data(self, data: Dict[str, Any]) -> bool:
         """Save JSON data to GitHub with better error handling"""
         try:
-            print(f"💾 Saving data to GitHub: {len(data)} branches")
+            print(f"💾 Attempting to save data to GitHub...")
+            print(f"📊 Data to save: {len(data)} branches, {self._count_materials(data)} materials")
             
             # First, get the current file to get its SHA (if exists)
             url = f"{self.base_url}/{self.file_path}"
@@ -77,15 +78,17 @@ class GitHubStorage:
             if sha:
                 payload["sha"] = sha
             
+            print(f"🚀 Sending request to GitHub API...")
             # Update the file
             response = requests.put(url, headers=self.headers, json=payload, timeout=30)
             
             if response.status_code in [200, 201]:
                 print("✅ Data successfully saved to GitHub")
+                print(f"📎 Commit SHA: {response.json().get('commit', {}).get('sha', 'N/A')}")
                 return True
             else:
                 print(f"❌ Error saving to GitHub: {response.status_code}")
-                print(f"Response: {response.text}")
+                print(f"📄 Response: {response.text}")
                 return False
                 
         except Exception as e:
@@ -110,7 +113,7 @@ class GitHubStorage:
                         "materials": [
                             {
                                 "title": "DBMS Module 1 Notes",
-                                "file_id": "",
+                                "file_id": "BQACAgUAAxkBAAMHaO6L7HpmEKJr6ZKMvC6NQ5uaPLAAAvUVAAJM_nlX1dCf5s3L2Fc2BA",
                                 "type": "document", 
                                 "keywords": ["dbms", "database", "module1"]
                             },
@@ -167,7 +170,7 @@ def load_materials():
                             "materials": [
                                 {
                                     "title": "DBMS Module 1 Notes",
-                                    "file_id": "",
+                                    "file_id": "BQACAgUAAxkBAAMHaO6L7HpmEKJr6ZKMvC6NQ5uaPLAAAvUVAAJM_nlX1dCf5s3L2Fc2BA",
                                     "type": "document",
                                     "keywords": ["dbms", "database", "module1"]
                                 },
@@ -186,14 +189,19 @@ def save_materials(materials):
     """Save study materials to GitHub or local file"""
     global github_storage
     
+    print(f"💾 save_materials called with {len(materials)} branches")
+    
     # Try GitHub first if configured
     if github_storage:
+        print("🔄 Attempting to save to GitHub...")
         success = github_storage.save_data(materials)
         if success:
             print("💫 Data saved to GitHub successfully")
             # Also update local file as backup
             _save_local_backup(materials)
             return
+        else:
+            print("❌ GitHub save failed, falling back to local")
     
     # Fallback to local file
     _save_local_backup(materials)
@@ -204,5 +212,14 @@ def _save_local_backup(materials):
         with open('study_materials.json', 'w', encoding='utf-8') as f:
             json.dump(materials, f, indent=2, ensure_ascii=False)
         print("💾 Data saved to local file as backup")
+        
+        # Debug: Print what was saved
+        total_materials = 0
+        for branch, semesters in materials.items():
+            for semester, subjects in semesters.items():
+                for subject, subject_data in subjects.items():
+                    total_materials += len(subject_data.get("materials", []))
+        print(f"📊 Local backup contains {total_materials} materials across {len(materials)} branches")
+        
     except Exception as e:
         print(f"❌ Error saving local backup: {e}")
