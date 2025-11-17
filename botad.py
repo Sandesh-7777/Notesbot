@@ -298,7 +298,7 @@ async def handle_team_upload_file(update: Update, context: ContextTypes.DEFAULT_
         return UPLOAD_FILE
 
 async def handle_team_upload_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle text input during team member upload"""
+    """Handle text input during team member upload with enhanced debugging"""
     user = update.effective_user
     
     if not is_team_member(user.id):
@@ -336,13 +336,21 @@ async def handle_team_upload_text(update: Update, context: ContextTypes.DEFAULT_
         if not keywords:
             raise ValueError("❌ Please provide at least one keyword")
         
+        # Debug: Print current structure before modification
+        print(f"🔧 BEFORE UPDATE - STUDY_MATERIALS keys: {list(STUDY_MATERIALS.keys())}")
+        if branch in STUDY_MATERIALS:
+            print(f"🔧 Branch {branch} exists, semesters: {list(STUDY_MATERIALS[branch].keys())}")
+        
         # Create structure if not exists
         if branch not in STUDY_MATERIALS:
             STUDY_MATERIALS[branch] = {}
+            print(f"➕ Created new branch: {branch}")
         if semester not in STUDY_MATERIALS[branch]:
             STUDY_MATERIALS[branch][semester] = {}
+            print(f"➕ Created new semester: {semester} in {branch}")
         if subject not in STUDY_MATERIALS[branch][semester]:
             STUDY_MATERIALS[branch][semester][subject] = {"materials": []}
+            print(f"➕ Created new subject: {subject} in {branch} Sem {semester}")
         
         # Add material
         new_material = {
@@ -354,8 +362,19 @@ async def handle_team_upload_text(update: Update, context: ContextTypes.DEFAULT_
             "uploaded_at": datetime.now().isoformat()
         }
         
+        print(f"➕ Adding new material: {title}")
+        print(f"📎 File ID: {context.user_data['upload_file_id']}")
+        
         STUDY_MATERIALS[branch][semester][subject]["materials"].append(new_material)
+        
+        # Debug: Print current structure after modification
+        materials_count = len(STUDY_MATERIALS[branch][semester][subject]["materials"])
+        print(f"🔧 AFTER UPDATE - {branch} Sem {semester} {subject} now has {materials_count} materials")
+        
+        # Save materials
+        print("💾 Calling save_materials...")
         save_materials(STUDY_MATERIALS)
+        print("✅ save_materials completed")
         
         # Success message
         text = (
