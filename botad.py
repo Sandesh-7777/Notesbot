@@ -2137,6 +2137,22 @@ async def show_donations(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(text, parse_mode="Markdown")
 
+async def check_github(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Check GitHub connection"""
+    from github_storage import github_storage
+    
+    if not github_storage:
+        await update.message.reply_text("❌ GitHub storage not initialized")
+        return
+    
+    try:
+        # Test load
+        data = github_storage.load_data()
+        await update.message.reply_text(f"✅ GitHub connection working\nBranches: {len(data)}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ GitHub error: {str(e)}")
+
+
 #--------------------------------------------------------------------------------------------------------------
 
 # Main function
@@ -2169,6 +2185,8 @@ def main() -> None:
     # Add these to your main() function:
     application.add_handler(CommandHandler("debug", debug_user))
     application.add_handler(CommandHandler("reset", reset_user))
+    # Add to main():
+    application.add_handler(CommandHandler("github_status", check_github))
 
     # Team member upload handlers
     application.add_handler(MessageHandler(
