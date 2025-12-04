@@ -64,9 +64,10 @@ logger = logging.getLogger(__name__)
     GITHUB_STATUS,
     STORAGE,
     FORCE_SAVE,
-    USER_DETAILS
+    USER_DETAILS,
+    CHECK_DATA
     
-) = range(16)
+) = range(17)
 
 # Ensure PDF folder exists
 if not os.path.exists(config.PDF_FOLDER):
@@ -107,6 +108,14 @@ if not os.path.exists(config.PDF_FOLDER):
 
 # Load materials at startup
 STUDY_MATERIALS = load_materials()
+
+# Debug: Check what's loaded
+print("🔍 DEBUG: Data loaded successfully!")
+print(f"🔍 DEBUG: Available branches: {list(STUDY_MATERIALS.keys())}")
+for branch in STUDY_MATERIALS:
+    print(f"🔍 DEBUG: Branch {branch} has semesters: {list(STUDY_MATERIALS[branch].keys())}")
+    for semester in STUDY_MATERIALS[branch]:
+        print(f"🔍 DEBUG:   Semester {semester} has subjects: {list(STUDY_MATERIALS[branch][semester].keys())}")
 
 def search_materials(query):
     """Search materials by keyword."""
@@ -945,7 +954,15 @@ async def show_subjects(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     branch = context.user_data.get("branch", "Unknown")
     semester = context.user_data.get("semester", "Unknown")
     
+    print(f"🔍 DEBUG: Looking for subjects in {branch} Semester {semester}")
+    print(f"🔍 DEBUG: Available branches: {list(STUDY_MATERIALS.keys())}")
+    
+    if branch in STUDY_MATERIALS:
+        print(f"🔍 DEBUG: Available semesters in {branch}: {list(STUDY_MATERIALS[branch].keys())}")
+    
     subjects = STUDY_MATERIALS.get(branch, {}).get(semester, {})
+    
+    print(f"🔍 DEBUG: Found subjects: {list(subjects.keys())}")
     
     if not subjects:
         text = f"❌ No subjects available for {branch} Semester {semester}."
@@ -2327,6 +2344,42 @@ async def user_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(text, parse_mode="Markdown")
 
+async def check_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Check if data is loaded correctly"""
+    user = update.effective_user
+    if user.id not in config.ADMIN_IDS:
+        await update.message.reply_text("❌ Admin access required.")
+        return
+    
+    text = "📊 **Data Status**\n\n"
+    
+    # Check STUDY_MATERIALS
+    if STUDY_MATERIALS:
+        text += "✅ STUDY_MATERIALS is loaded\n"
+        text += f"📁 Branches: {len(STUDY_MATERIALS)}\n"
+        
+        for branch, semesters in STUDY_MATERIALS.items():
+            text += f"\n🏛️ **{branch}**:\n"
+            for semester, subjects in semesters.items():
+                text += f"  📅 Sem {semester}: {len(subjects)} subjects\n"
+                for subject, data in subjects.items():
+                    materials_count = len(data.get("materials", []))
+                    text += f"    📚 {subject}: {materials_count} materials\n"
+    else:
+        text += "❌ STUDY_MATERIALS is empty!\n"
+    
+    # Check local file
+    try:
+        if os.path.exists('study_materials.json'):
+            with open('study_materials.json', 'r', encoding='utf-8') as f:
+                local_data = json.load(f)
+                text += f"\n💾 Local file: {len(local_data)} branches\n"
+        else:
+            text += "\n❌ Local file not found\n"
+    except Exception as e:
+        text += f"\n❌ Local file error: {str(e)}\n"
+    
+    await update.message.reply_text(text, parse_mode="Markdown")
 
 #--------------------------------------------------------------------------------------------------------------
 
@@ -2375,6 +2428,8 @@ def main() -> None:
     application.add_handler(CommandHandler("force_save", force_save))
     application.add_handler(CommandHandler("storage", check_storage))
     application.add_handler(CommandHandler("user_details", user_details))
+    # Add this handler to your main() function:
+    application.add_handler(CommandHandler("check_data", check_data))
 
     # Team member upload handlers
     application.add_handler(MessageHandler(
